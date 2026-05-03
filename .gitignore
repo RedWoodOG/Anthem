@@ -1,0 +1,38 @@
+# Secrets
+.env
+*.pem
+*.key
+*.crt
+certs/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# State
+*.sqlite3
+*.db
+*.pid
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Reports and temp
+.local-mvp/
+reports/
+backups/
+tmp/

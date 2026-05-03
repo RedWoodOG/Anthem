@@ -1,0 +1,238 @@
+# Anthem Platform — Docker Compose
+# Only the gateway, Grafana, and Prometheus are exposed.
+# All other services are internal-only.
+
+networks:
+  anthem-public:
+    driver: bridge
+  anthem-internal:
+    driver: bridge
+    internal: true
+  anthem-data:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  opa_bundle:
+
+services:
+  # ── Gateway (public) ──────────────────────────────────
+  cortex-gateway:
+    build:
+      context: .
+      dockerfile: cortex-gateway/Dockerfile
+    container_name: anthem-gateway
+    user: "1000:1000"
+    ports:
+      - "9200:8080"    # Only exposed port
+    networks:
+      - anthem-public
+      - anthem-internal
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=INFO
+      - HOST=0.0.0.0
+      - PORT=8080
+      - BROKER_URL=http://function-broker:8100
+      - BROKER_TIMEOUT=60
+      - UIE_URL=http://uie:8000
+      - UIE_ENABLED=true
+      - REQUIRE_API_KEYS=${REQUIRE_API_KEYS:-false}
+      - CORS_ORIGINS=http://localhost:3000
+      - OPA_URL=http://opa:8181
+      - CA_BUNDLE=/certs/ca.crt
+      - CLIENT_CERT=/certs/gateway.crt
+      - CLIENT_KEY=/certs/gateway.key
+    depends_on:
+      function-broker:
+        condition: service_healthy
+      opa:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  # ── Function Broker (internal) ────────────────────────
+  function-broker:
+    build:
+      context: .
+      dockerfile: function-broker/Dockerfile
+    container_name: anthem-broker
+    user: "1000:1000"
+    networks:
+      - anthem-internal
+    # NO PORTS EXPOSED
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=INFO
+      - HOST=0.0.0.0
+      - PORT=8100
+      - OPA_URL=http://opa:8181
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── BUE (internal) ───────────────────────────────────
+  bue:
+    build:
+      context: .
+      dockerfile: bue/Dockerfile
+    container_name: anthem-bue
+    user: "1000:1000"
+    networks:
+      - anthem-internal
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── URPE (internal, isolated) ────────────────────────
+  urpe:
+    build:
+      context: .
+      dockerfile: urpe/Dockerfile
+    container_name: anthem-urpe
+    user: "1000:1000"
+    networks:
+      - anthem-internal
+    # NO PORTS EXPOSED — broker access only
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=WARNING
+      - GOVERNANCE_REQUIRED=true
+      - MIN_TIER=T3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7300/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── UIE (internal) ───────────────────────────────────
+  uie:
+    build:
+      context: .
+      dockerfile: uie/Dockerfile
+    container_name: anthem-uie
+    user: "1000:1000"
+    networks:
+      - anthem-internal
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── OPA (internal) ───────────────────────────────────
+  opa:
+    image: openpolicyagent/opa:0.57.0
+    container_name: anthem-opa
+    user: "1000:1000"
+    networks:
+      - anthem-internal
+    # NO PORTS EXPOSED
+    command: ["run", "--server", "--log-level=info", "/policies"]
+    volumes:
+      - ./constitutional-governance/policies:/policies:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Postgres (internal) ──────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: anthem-postgres
+    user: "1000:1000"
+    networks:
+      - anthem-data
+    # NO PORTS EXPOSED
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-anthem}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=anthem
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anthem}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis (internal) ─────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: anthem-redis
+    networks:
+      - anthem-data
+    # NO PORTS EXPOSED
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Prometheus (monitoring) ──────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: anthem-prometheus
+    networks:
+      - anthem-internal
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  # ── Grafana (monitoring) ─────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: anthem-grafana
+    networks:
+      - anthem-internal
+      - anthem-public
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    restart: unless-stopped
