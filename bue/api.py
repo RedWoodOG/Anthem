@@ -116,6 +116,89 @@ async def analyze(envelope: Envelope) -> NormalizedResult:
     )
 
 
+# ---------------------------------------------------------------------------
+# Harness-powered agent endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/v1/agent")
+async def agent_endpoint(envelope: Envelope) -> NormalizedResult:
+    """
+    Run BUE as a Luna-hosted agent.
+    The harness drives the LLM through the tool-use loop with
+    identity constraints and reflection checks.
+    """
+    identity = load_agent_identity("bue")
+
+    tools = ToolRegistry()
+    tools.register(
+        ToolDefinition(
+            name="monte_carlo_simulate",
+            description="Run Monte Carlo revenue simulation with GBM model",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "current_revenue": {"type": "number", "description": "Annual revenue in USD"},
+                    "growth_rate": {"type": "number", "description": "Annual growth rate (decimal)"},
+                    "volatility": {"type": "number", "description": "Annual volatility (decimal)"},
+                    "revenue_history": {"type": "array", "items": {"type": "number"}, "description": "Historical annual revenues"},
+                    "horizon_years": {"type": "integer", "description": "Forecast horizon in years"},
+                },
+                "required": ["current_revenue"],
+            },
+            permissions=["monte_carlo_simulate"],
+        ),
+        handle_monte_carlo_simulate,
+    )
+    tools.register(
+        ToolDefinition(
+            name="lookup_industry_taxonomy",
+            description="Get default parameters for an industry",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "industry": {"type": "string", "description": "Industry name"},
+                },
+                "required": ["industry"],
+            },
+            permissions=["lookup_industry_taxonomy"],
+        ),
+        _handle_taxonomy_lookup,
+    )
+
+    harness = AgentHarness(
+        agent_name="bue",
+        identity=identity,
+        tools=tools,
+        verbalizer=None,  # Set to OpenAI/Anthropic client when configured
+        max_turns=8,
+        token_budget=30_000,
+    )
+
+    goal = (
+        f"Underwrite the business described in the payload. "
+        f"Use monte_carlo_simulate to generate probabilistic forecasts. "
+        f"Industry: {envelope.payload.get('industry', 'general')}."
+    )
+    result = await harness.run(goal, envelope.payload)
+
+    return NormalizedResult(
+        data=result,
+        traces={
+            "capability_id": "bue.agent",
+            "request_id": envelope.request_id,
+            "agent_events": len(harness.event_log),
+        },
+        governance=envelope.governance,
+    )
+
+
+async def _handle_taxonomy_lookup(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Tool handler for lookup_industry_taxonomy."""
+    from bue.simulation.taxonomy import get_industry_defaults
+    industry = params.get("industry", "general")
+    return {"industry": industry, "defaults": get_industry_defaults(industry)}
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "bue", "version": "1.0.0"}

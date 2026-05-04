@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "anthem-gateway"
+    static_configs:
+      - targets: ["cortex-gateway:8080"]
+
+  - job_name: "anthem-broker"
+    static_configs:
+      - targets: ["function-broker:8100"]
+
+  - job_name: "anthem-bue"
+    static_configs:
+      - targets: ["bue:9000"]
+
+  - job_name: "anthem-urpe"
+    static_configs:
+      - targets: ["urpe:7300"]
