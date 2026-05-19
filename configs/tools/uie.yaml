@@ -1,0 +1,49 @@
+tools:
+  - name: call_agent
+    description: "Route a sub-task to a specialist agent via the broker"
+    parameters:
+      type: object
+      properties:
+        agent:
+          type: string
+          enum: [bue, urpe, ceoa, domain-cortex]
+          description: "The specialist agent to call"
+        capability_id:
+          type: string
+          description: "Specific capability ID (e.g., bue.underwrite, urpe.evaluate)"
+        task:
+          type: string
+          enum: [underwriting, evaluation, analysis, scheduling, query]
+        domains:
+          type: array
+          items:
+            type: string
+      required: [capability_id, task]
+    permissions: [orchestrate]
+    expected_latency_ms: 5000
+
+  - name: decompose_goal
+    description: "Break a complex goal into sub-tasks for specialist agents"
+    parameters:
+      type: object
+      properties:
+        goal:
+          type: string
+          description: "The user's goal to decompose"
+      required: [goal]
+    permissions: [plan]
+    expected_latency_ms: 2000
+
+  - name: synthesize_results
+    description: "Combine results from multiple agent calls into a coherent response"
+    parameters:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+          description: "List of agent results to synthesize"
+      required: [results]
+    permissions: [synthesize]
+    expected_latency_ms: 1000

@@ -1,0 +1,82 @@
+tools:
+  - name: aggregate_results
+    description: "Combine N agent results into one structured report"
+    parameters:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              agent_id:
+                type: string
+                description: "Source agent identifier"
+              result:
+                type: object
+                description: "NormalizedResult content from the agent"
+              timestamp:
+                type: string
+                format: date-time
+                description: "When the result was produced"
+          description: "List of agent results to aggregate"
+        synthesis_mode:
+          type: string
+          enum: [consensus, weighted, comparative]
+          default: weighted
+          description: "How to combine results"
+      required: [results]
+    permissions: [aggregate_results]
+    expected_latency_ms: 2000
+
+  - name: find_correlations
+    description: "Find statistical correlations across agent outputs"
+    parameters:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+          description: "Agent results to analyze for correlations"
+        correlation_types:
+          type: array
+          items:
+            type: string
+            enum: [positive, negative, causal, coincident]
+          default: [positive, negative]
+          description: "Types of correlations to detect"
+        min_strength:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: "Minimum correlation strength to report"
+      required: [results]
+    permissions: [find_correlations]
+    expected_latency_ms: 3000
+
+  - name: flag_contradictions
+    description: "Flag conflicting conclusions from different agents"
+    parameters:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+          description: "Agent results to check for contradictions"
+        contradiction_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: "Confidence threshold for flagging contradictions"
+        domains:
+          type: array
+          items:
+            type: string
+          description: "Specific domains to check (optional)"
+      required: [results]
+    permissions: [flag_contradictions]
+    expected_latency_ms: 1500

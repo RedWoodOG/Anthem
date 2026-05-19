@@ -1,0 +1,33 @@
+# Anthem Function Broker — Capability Registry (Local)
+# Uses 127.0.0.1 for local development/testing.
+- id: "bue.underwrite"
+  display_name: "Business Underwriting"
+  adapter_type: "http"
+  endpoint: "http://127.0.0.1:9000/v1/analyze"
+  default_governance_tier: "T2"
+  domains: ["finance", "credit_risk"]
+  timeout: 30
+
+- id: "urpe.evaluate"
+  display_name: "Risk Evaluation"
+  adapter_type: "http"
+  endpoint: "http://127.0.0.1:7300/v1/evaluate"
+  default_governance_tier: "T3"
+  domains: ["strategy", "finance"]
+  timeout: 60
+
+- id: "uie.query"
+  display_name: "General Query"
+  adapter_type: "http"
+  endpoint: "http://127.0.0.1:8000/v1/query"
+  default_governance_tier: "T1"
+  domains: ["general"]
+  timeout: 45
+
+- id: "ceoa.schedule"
+  display_name: "Compute Scheduling"
+  adapter_type: "http"
+  endpoint: "http://127.0.0.1:7100/ceoa/v1/workloads"
+  default_governance_tier: "T2"
+  domains: ["compute", "energy"]
+  timeout: 30

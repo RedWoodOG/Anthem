@@ -1,0 +1,91 @@
+tools:
+  - name: schedule_workload
+    description: "Schedule a compute workload to the best region based on carbon and cost"
+    parameters:
+      type: object
+      properties:
+        workload_id:
+          type: string
+          description: "Unique identifier for the workload"
+        workload_type:
+          type: string
+          enum: [batch, interactive, latency-sensitive, flexible]
+          description: "Type of workload affecting scheduling priorities"
+        compute_requirements:
+          type: object
+          properties:
+            cpu_cores:
+              type: integer
+              description: "Required CPU cores"
+            memory_gb:
+              type: number
+              description: "Required memory in GB"
+            gpu:
+              type: boolean
+              description: "GPU acceleration required"
+          description: "Compute resource requirements"
+        regions:
+          type: array
+          items:
+            type: string
+          description: "Candidate regions (optional, defaults to all)"
+        max_cost_per_hour:
+          type: number
+          description: "Maximum acceptable cost per hour in USD"
+      required: [workload_id, workload_type]
+    permissions: [schedule]
+    expected_latency_ms: 500
+
+  - name: optimize_placement
+    description: "Optimize workload placement across multiple regions"
+    parameters:
+      type: object
+      properties:
+        workloads:
+          type: array
+          items:
+            type: object
+            properties:
+              workload_id:
+                type: string
+              workload_type:
+                type: string
+              priority:
+                type: integer
+          description: "List of workloads to optimize"
+        optimization_goal:
+          type: string
+          enum: [min-carbon, min-cost, balanced, latency-priority]
+          description: "Primary optimization objective"
+        constraints:
+          type: object
+          properties:
+            max_regions:
+              type: integer
+              description: "Maximum number of regions to use"
+            data_residency:
+              type: array
+              items:
+                type: string
+              description: "Required data residency regions"
+          description: "Placement constraints"
+      required: [workloads, optimization_goal]
+    permissions: [optimize]
+    expected_latency_ms: 1000
+
+  - name: query_carbon_intensity
+    description: "Get current carbon intensity for cloud regions"
+    parameters:
+      type: object
+      properties:
+        regions:
+          type: array
+          items:
+            type: string
+          description: "Regions to query (defaults to all known regions)"
+        include_forecast:
+          type: boolean
+          description: "Include 24-hour forecast if available"
+      required: []
+    permissions: [query]
+    expected_latency_ms: 200

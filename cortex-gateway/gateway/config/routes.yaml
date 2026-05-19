@@ -1,0 +1,46 @@
+# Anthem Gateway Routes — maps intents to broker capabilities.
+# Priority: higher number = matched first.
+
+- priority: 100
+  match:
+    task: "underwriting"
+    domains: ["finance", "credit_risk"]
+  plan:
+    - id: "underwrite"
+      capability_id: "bue.underwrite"
+
+- priority: 95
+  match:
+    task: "evaluation"
+    domains: ["strategy", "finance"]
+  plan:
+    - id: "baseline"
+      capability_id: "bue.underwrite"
+    - id: "risk_analysis"
+      capability_id: "urpe.evaluate"
+      dependencies: ["baseline"]
+      input_mapping:
+        baseline_result: "baseline.data"
+
+- priority: 90
+  match:
+    task: "analysis"
+    domains: ["finance"]
+  plan:
+    - id: "analyze"
+      capability_id: "bue.underwrite"
+
+- priority: 50
+  match:
+    task: "query"
+  plan:
+    - id: "query"
+      capability_id: "uie.query"
+
+- priority: 40
+  match:
+    task: "scheduling"
+    domains: ["compute", "energy"]
+  plan:
+    - id: "schedule"
+      capability_id: "ceoa.schedule"

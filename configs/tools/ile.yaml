@@ -1,0 +1,69 @@
+tools:
+  - name: record_feedback
+    description: "Store a feedback event for later drift analysis"
+    parameters:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: "The agent that produced this feedback (e.g., uie, bue, urpe)"
+        task:
+          type: string
+          description: "The task or capability being evaluated"
+        expected_outcome:
+          type: object
+          description: "The expected result structure"
+        actual_outcome:
+          type: object
+          description: "The actual result produced"
+        outcome:
+          type: string
+          enum: [success, partial, failure]
+          description: "High-level outcome classification"
+        latency_ms:
+          type: integer
+          description: "Execution latency in milliseconds"
+        timestamp:
+          type: string
+          format: date-time
+          description: "ISO 8601 timestamp of the event"
+      required: [agent_id, task, outcome, timestamp]
+    permissions: [learn]
+    expected_latency_ms: 50
+
+  - name: query_drift
+    description: "Compute drift metrics for a given agent over a time window"
+    parameters:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: "The agent to analyze"
+        window_size:
+          type: integer
+          minimum: 1
+          description: "Number of recent samples to include (default: 100)"
+        metric:
+          type: string
+          enum: [outcome_drift, latency_drift, combined]
+          description: "Which drift metric to compute"
+      required: [agent_id]
+    permissions: [observe]
+    expected_latency_ms: 100
+
+  - name: generate_learning_signal
+    description: "Produce a learning signal with parameter adjustment recommendations"
+    parameters:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: "The agent to generate learning signal for"
+        confidence_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: "Minimum confidence to emit signal (default: 0.7)"
+      required: [agent_id]
+    permissions: [learn]
+    expected_latency_ms: 200

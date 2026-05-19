@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "anthem-gateway"
+    static_configs:
+      - targets: ["cortex-gateway:8080"]
+
+  - job_name: "anthem-broker"
+    static_configs:
+      - targets: ["function-broker:8100"]
+
+  - job_name: "anthem-bue"
+    static_configs:
+      - targets: ["bue:9000"]
+
+  - job_name: "anthem-urpe"
+    static_configs:
+      - targets: ["urpe:7300"]
+
+  - job_name: "anthem-uie"
+    static_configs:
+      - targets: ["uie:8000"]
+
+  - job_name: "anthem-domain-cortex"
+    static_configs:
+      - targets: ["domain_cortex:7500"]
+
+  - job_name: "anthem-ile"
+    static_configs:
+      - targets: ["ile:7400"]
+
+  - job_name: "anthem-klein"
+    static_configs:
+      - targets: ["klein:7200"]
+
+  - job_name: "anthem-ceoa"
+    static_configs:
+      - targets: ["ceoa:7100"]
+
+  - job_name: "anthem-gateway-metrics"
+    static_configs:
+      - targets: ["cortex-gateway:9200"]

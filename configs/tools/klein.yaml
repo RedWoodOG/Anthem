@@ -1,0 +1,83 @@
+- name: score_routes
+  description: "Score each route candidate on latency, cost, carbon, and reliability"
+  parameters:
+    type: object
+    properties:
+      candidates:
+        type: array
+        items:
+          type: object
+          properties:
+            route_id:
+              type: string
+              description: "Unique identifier for the route"
+            latency_ms:
+              type: number
+              description: "Expected latency in milliseconds"
+            cost_usd:
+              type: number
+              description: "Expected cost in USD"
+            carbon_gco2:
+              type: number
+              description: "Carbon emissions in grams CO2"
+            reliability_score:
+              type: number
+              description: "Reliability score (0.0-1.0), optional"
+          required: [route_id, latency_ms, cost_usd, carbon_gco2]
+      weights:
+        type: object
+        properties:
+          latency:
+            type: number
+            description: "Weight for latency factor (0.0-1.0)"
+          cost:
+            type: number
+            description: "Weight for cost factor (0.0-1.0)"
+          carbon:
+            type: number
+            description: "Weight for carbon factor (0.0-1.0)"
+          reliability:
+            type: number
+            description: "Weight for reliability factor (0.0-1.0)"
+        description: "Scoring weights, must sum to 1.0"
+    required: [candidates]
+  permissions: [score]
+  expected_latency_ms: 100
+
+- name: rank_candidates
+  description: "Rank scored candidates and return top N"
+  parameters:
+    type: object
+    properties:
+      scored_candidates:
+        type: array
+        items:
+          type: object
+        description: "List of scored route candidates"
+      top_n:
+        type: integer
+        description: "Number of top candidates to return (default: 10)"
+    required: [scored_candidates]
+  permissions: [rank]
+  expected_latency_ms: 50
+
+- name: recommend_route
+  description: "Produce a single recommendation with explanation"
+  parameters:
+    type: object
+    properties:
+      candidates:
+        type: array
+        items:
+          type: object
+        description: "Route candidates to evaluate"
+      weights:
+        type: object
+        description: "Scoring weights"
+      workload_type:
+        type: string
+        enum: [realtime, batch, bulk, critical]
+        description: "Workload type for heuristic adjustments"
+    required: [candidates]
+  permissions: [recommend]
+  expected_latency_ms: 200
